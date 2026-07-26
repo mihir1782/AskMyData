@@ -1,63 +1,152 @@
+# Streamlit is used to build the web interface
 import streamlit as st
+
+# Our own modules:
+# file_handler -> reads uploaded CSV/Excel files and understands their schema
+# database     -> converts the DataFrame into an in-memory SQLite database
+# llm          -> sends the user's question + schema to the LLM and gets SQL
 from file_handler import load_file, get_schema
 from database import create_database
+from llm import generate_sql
+
+
+# --------------------------------------------------
+# PAGE HEADER
+# --------------------------------------------------
 
 st.title("AI SQL RAG Chatbot")
 
-st.write("Ask questions about your database using natural language.")
+st.write(
+    "Upload your data and ask questions about it using natural language."
+)
 
-# Allow the user to upload CSV or Excel files
+
+# --------------------------------------------------
+# FILE UPLOAD
+# --------------------------------------------------
+
+# file_uploader allows the user to select a file from their computer.
+# We currently allow only CSV and XLSX files.
 uploaded_file = st.file_uploader(
     "Upload a CSV or Excel file",
     type=["csv", "xlsx"]
 )
 
-# This runs only after a file has been uploaded
+
+# --------------------------------------------------
+# PROCESS THE UPLOADED FILE
+# --------------------------------------------------
+
+# Nothing below this block runs until the user uploads a file.
 if uploaded_file is not None:
 
     try:
-        # Parse the uploaded file
+
+        # load_file() reads the CSV/Excel file using Pandas
+        # and returns a Pandas DataFrame.
         df = load_file(uploaded_file)
+
+
+        # --------------------------------------------------
+        # CREATE TEMPORARY SQLITE DATABASE
+        # --------------------------------------------------
+
+        # Copies the DataFrame into an in-memory SQLite table
+        # named "data".
+        #
+        # The database exists temporarily while the app is running.
         connection = create_database(df)
-        test_query = "SELECT * FROM data LIMIT 5"
 
-        result = connection.execute(test_query).fetchall()
 
-        st.write("### SQLite Test")
-        st.write(result)
-
-        schema = get_schema(df)
+        # --------------------------------------------------
+        # DATASET INFORMATION
+        # --------------------------------------------------
 
         st.success("File uploaded successfully!")
 
-        # Basic information about the dataset
         st.write("### Dataset Information")
 
-        # print(df.shape)
-        # print(df.tail())
-
+        # len(df) gives the number of rows.
+        # df.shape[1] gives the number of columns.
         st.write("Rows:", len(df))
         st.write("Columns:", df.shape[1])
 
-        # Display the column names
+
+        # --------------------------------------------------
+        # COLUMN NAMES
+        # --------------------------------------------------
+
+        # df.columns contains all DataFrame column names.
+        # .tolist() converts them into a normal Python list.
         st.write("### Columns")
         st.write(df.columns.tolist())
 
-        # display schema
+
+        # --------------------------------------------------
+        # DATASET SCHEMA
+        # --------------------------------------------------
+
+        # get_schema() determines the datatype of each column.
+        schema = get_schema(df)
+
         st.write("### Dataset Schema")
 
-        schema = get_schema(df)
-        st.dataframe(schema, hide_index=True, use_container_width=True)
+        # Display the schema as a Streamlit table.
+        st.dataframe(
+            schema,
+            hide_index=True,
+            use_container_width=True
+        )
 
-        # Show the actual dataset
+
+        # --------------------------------------------------
+        # DATA PREVIEW
+        # --------------------------------------------------
+
         st.write("### Data Preview")
+
+        # df.head() returns the first 5 rows by default.
         st.dataframe(df.head())
 
+
+        # --------------------------------------------------
+        # ASK A QUESTION
+        # --------------------------------------------------
+
+        # The question box is INSIDE the uploaded_file block.
+        # This means users cannot ask questions until they
+        # actually upload some data.
+        st.write("### Ask Your Data")
+
+        question = st.text_input(
+            "Enter your question:"
+        )
+
+
+        # --------------------------------------------------
+        # GENERATE SQL USING THE LLM
+        # --------------------------------------------------
+
+        # An empty string evaluates to False.
+        # Therefore this block runs only after the user
+        # actually enters a question.
+        if question:
+
+            # Send:
+            # 1. The user's natural-language question
+            # 2. The uploaded DataFrame/schema information
+            #
+            # generate_sql() returns the SQL generated by the LLM.
+            sql_query = generate_sql(question, df)
+
+            st.write("### Generated SQL")
+
+            # st.code displays the SQL nicely with syntax highlighting.
+            st.code(sql_query, language="sql")
+
+
+    # If file parsing, database creation, or LLM generation
+    # causes an error, display it in the Streamlit interface
+    # instead of crashing the whole application.
     except Exception as e:
-        st.error(f"Error reading file: {e}")
-
-
-question = st.text_input("Enter your question:")
-
-if question:
-    st.write("You asked:", question)
+        st.error(f"Error: {e}")
