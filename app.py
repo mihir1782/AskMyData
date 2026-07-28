@@ -6,8 +6,8 @@ import streamlit as st
 # database     -> converts the DataFrame into an in-memory SQLite database
 # llm          -> sends the user's question + schema to the LLM and gets SQL
 from file_handler import load_file, get_schema
-from database import create_database
-from llm import generate_sql
+from database import create_database, execute_query
+from llm import generate_sql, generate_answer
 
 
 # --------------------------------------------------
@@ -143,6 +143,29 @@ if uploaded_file is not None:
 
             # st.code displays the SQL nicely with syntax highlighting.
             st.code(sql_query, language="sql")
+
+            # Execute the generated SQL on our
+            # temporary SQLite database.
+            result = execute_query(connection, sql_query)
+
+            # Display the result as a table on screen.
+            st.write("### Result")
+            st.dataframe(
+                result,
+                hide_index=True,
+                use_container_width=True
+            )
+
+            # --------------------------------------------------
+            # GENERATE NATURAL-LANGUAGE ANSWER
+            # --------------------------------------------------
+
+            # Send the original question and the SQL result
+            # back to Gemini so the raw database result can
+            # be explained in normal language.
+            answer = generate_answer(question,result)
+            st.write("### Answer")
+            st.write(answer)
 
 
     # If file parsing, database creation, or LLM generation
