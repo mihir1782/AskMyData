@@ -14,7 +14,7 @@ from llm import generate_sql, generate_answer
 # PAGE HEADER
 # --------------------------------------------------
 
-st.title("AI SQL RAG Chatbot")
+st.title("Text-to-SQL AI Chatbot")
 
 st.write(
     "Upload your data and ask questions about it using natural language."

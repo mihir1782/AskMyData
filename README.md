@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AskMyData 
 
 
@@ -162,3 +163,5 @@ Planned improvements include Retrieval-Augmented Generation (RAG), conversationa
 - AWS deployment
 - Multi-user support
 - Dashboard with analytics
+=======
+>>>>>>> 8cf14f5 (V2 - React app + Fast API Endpoints)
